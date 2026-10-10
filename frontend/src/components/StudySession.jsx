@@ -1,5 +1,7 @@
 export default function StudySession({
   question,
+  aiFeedback,
+  isChecking,
   questionNumber,
   totalQuestions,
   selectedAnswer,
@@ -146,9 +148,16 @@ export default function StudySession({
                 {wasCorrect ? "That’s right!" : "Not quite, and that’s okay."}
               </strong>
 
-              <p>{question.explanation}</p>
+              <p>
+                {!wasCorrect && isChecking
+                  ? "Generating your personalised feedback..."
+                  : !wasCorrect && aiFeedback
+                    ? aiFeedback
+                    : question.explanation}
+              </p>
             </aside>
           )}
+          
 
           <div className="question-actions">
             {isChecked ? (

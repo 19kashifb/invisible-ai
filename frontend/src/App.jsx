@@ -16,8 +16,11 @@ const pageTitles = {
 export default function App() {
   const [currentView, setCurrentView] = useState("overview");
   const [questionIndex, setQuestionIndex] = useState(0);
+  const [sessionQuestions, setSessionQuestions] = useState(questions);
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [isChecked, setIsChecked] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState("");
+  const [isChecking, setIsChecking] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
   const [answeredCount, setAnsweredCount] = useState(0);
   const [topicScores, setTopicScores] = useState(() =>
@@ -26,10 +29,20 @@ export default function App() {
     ),
   );
 
-  const question = questions[questionIndex];
+  const question = sessionQuestions[questionIndex];
   const wasCorrect = isChecked && selectedAnswer === question?.correctAnswer;
 
   function startSession() {
+    const weakestTopic = [...starterTopics].sort(
+      (a, b) => topicScores[a.name] - topicScores[b.name],
+    )[0];
+  
+    const prioritisedQuestions = [
+      ...questions.filter((q) => q.topic === weakestTopic.name),
+      ...questions.filter((q) => q.topic !== weakestTopic.name),
+    ];
+  
+    setSessionQuestions(prioritisedQuestions);
     setQuestionIndex(0);
     setSelectedAnswer(null);
     setIsChecked(false);
@@ -38,20 +51,26 @@ export default function App() {
     setCurrentView("study");
   }
 
-  function checkAnswer() {
-    if (selectedAnswer === null || isChecked || !question) {
+  async function checkAnswer() {
+    if (selectedAnswer === null || isChecked || !question || isChecking) {
       return;
     }
-
+  
+    const answerText = question.answers[selectedAnswer];
+    const correctAnswerText = question.answers[question.correctAnswer];
+  
+    setIsChecking(true);
+    setAiFeedback("");
+  
     const isCorrect = selectedAnswer === question.correctAnswer;
-
+  
     setIsChecked(true);
     setAnsweredCount((count) => count + 1);
-
+  
     if (isCorrect) {
       setCorrectCount((count) => count + 1);
     }
-
+  
     setTopicScores((scores) => ({
       ...scores,
       [question.topic]: Math.max(
@@ -59,12 +78,62 @@ export default function App() {
         Math.min(99, scores[question.topic] + (isCorrect ? 4 : -3)),
       ),
     }));
+  
+    try {
+      if (!isCorrect) {
+        const response = await fetch("http://127.0.0.1:8000/answer", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            student_id: 1,
+            topic: question.topic,
+            question: question.prompt,
+            student_answer: answerText,
+            correct_answer: correctAnswerText,
+          }),
+        });
+  
+        if (!response.ok) {
+          throw new Error("Could not retrieve AI feedback");
+        }
+  
+        const data = await response.json();
+        setAiFeedback(data.feedback || "");
+      } else {
+        await fetch("http://127.0.0.1:8000/answer", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            student_id: 1,
+            topic: question.topic,
+            question: question.prompt,
+            student_answer: answerText,
+            correct_answer: correctAnswerText,
+          }),
+        });
+      }
+    } catch (error) {
+      console.error("Answer submission failed:", error);
+      setAiFeedback(
+        isCorrect
+          ? ""
+          : "Review the explanation below, then try breaking the question into smaller steps.",
+      );
+    } finally {
+      setIsChecking(false);
+    }
   }
 
   function nextQuestion() {
     setQuestionIndex((index) => index + 1);
     setSelectedAnswer(null);
     setIsChecked(false);
+    setAiFeedback("");
+    setIsChecking(false);
   }
 
   function navigate(view) {
@@ -109,6 +178,8 @@ export default function App() {
           {currentView === "study" && (
             <StudySession
               question={question}
+              aiFeedback={aiFeedback}
+              isChecking={isChecking}
               questionNumber={Math.min(questionIndex + 1, questions.length)}
               totalQuestions={questions.length}
               selectedAnswer={selectedAnswer}

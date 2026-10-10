@@ -44,4 +44,26 @@ export const questions = [
     explanation:
       "The cell membrane is selectively permeable, helping regulate what moves into and out of the cell.",
   },
+
+
+  {
+    id: "geometry-1",
+    topic: "Geometry",
+    level: "Foundations",
+    prompt: "What is the sum of the interior angles of a triangle?",
+    answers: ["90°", "180°", "270°", "360°"],
+    correctAnswer: 1,
+    explanation:
+      "The interior angles of every triangle add up to 180°.",
+  },
+  {
+    id: "geometry-2",
+    topic: "Geometry",
+    level: "Building confidence",
+    prompt: "A rectangle has a length of 8 cm and a width of 3 cm. What is its area?",
+    answers: ["11 cm²", "22 cm²", "24 cm²", "48 cm²"],
+    correctAnswer: 2,
+    explanation:
+      "Area = length × width, so 8 × 3 = 24 cm².",
+  },
 ];
